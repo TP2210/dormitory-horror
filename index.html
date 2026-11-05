@@ -109,6 +109,7 @@ body.portrait #toast{position:fixed;top:calc(var(--gb) - 2.4em);font-size:12px;m
 @keyframes fin{to{opacity:1}}
 
 #fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .25s}
+#scare{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;display:none;pointer-events:none}
 
 </style>
 </head>
@@ -146,6 +147,7 @@ body.portrait #toast{position:fixed;top:calc(var(--gb) - 2.4em);font-size:12px;m
   </div>
   <div id="ending" class="hidden"></div>
   <div id="fade"></div>
+  <canvas id="scare" width="160" height="90"></canvas>
 </div>
 <div id="touch" class="hidden">
   <div id="dpad"><span class="u">▲</span><span class="d">▼</span><span class="l">◀</span><span class="r">▶</span></div>
@@ -236,6 +238,11 @@ const Snd = (() => {
     tape: () => { tone(900, .03, 'square', .06); noise(.03, .2, 2000, 'bandpass', .01, 2); noise(1.2, .04, 5000, 'highpass', .08, 1, .2); },
     glitch: () => { for (let i = 0; i < 6; i++) tone(200 + Math.random() * 1600, .05, 'square', .03, Math.random() * 400 - 200, i * .05); noise(.35, .12, 1200, 'bandpass', 0, 3); },
     heart: () => beat(),
+    scare: () => {
+      noise(.7, .9, 1800, 'bandpass', 0, .6);
+      [880, 932, 1245].forEach(f => tone(f, .6, 'sawtooth', .07, 500));
+      tone(45, .9, 'sine', .6, -20); noise(.9, .5, 140);
+    },
     scrape: () => noise(1.1, .08, 700, 'bandpass', 0, 4, .5),
   };
 
@@ -1163,6 +1170,12 @@ const Story = (() => {
     await narr('คีนนอนหันหน้าเข้าผนัง หายใจช้า ๆ');
     await narr('ก่อนผมจะลุก เขาละเมอพึมพำออกมาเบา ๆ');
     await say('คีน', '...บอส ...เอารองเท้ากูมาคืนด้วย');
+    await wait(800); Snd.sfx.knock(); await wait(1100);
+    await narr('ก๊อก ก๊อก ก๊อก... เสียงเคาะประตูห้องเบา ๆ');
+    await narr('"ปลื้ม... อยู่มั้ย"');
+    await narr('เสียงนั้นคุ้นหูเหลือเกิน ผมค่อย ๆ เอาตาแนบช่องตาแมว');
+    await jumpscare('face');
+    await narr('ทางเดินหน้าห้องว่างเปล่า ไฟนีออนกะพริบอยู่ดวงเดียว');
     await narr('กุญแจดาดฟ้าในมือเย็นเฉียบ อีกสิบสี่นาทีจะถึง 02:13');
   }
 
@@ -1419,6 +1432,7 @@ const Story = (() => {
       }
       F.loop = (F.loop || 0) + 1;
       await fade(1, 400); Snd.sfx.steps(); await wait(900); placeTile(21.5, 3, 'down'); await fade(0, 400);
+      if (F.loop === 1) await jumpscare('face');
       return narr(['ผมเดินลงบันไดไปหนึ่งชั้น... ป้ายบนผนังเขียนว่า "ชั้น 4"', 'ลงไปอีกชั้น... "ชั้น 4"',
         'บันไดพาผมกลับมาที่เดิมทุกครั้ง... ประตูห้อง 3407 แง้มอยู่'][Math.min(2, F.loop - 1)]);
     }
@@ -1795,7 +1809,15 @@ const Story = (() => {
       }
       return narr('ประกาศปิดดาดฟ้า หมึกซีดจนเกือบอ่านไม่ออก');
     },
-    sink: () => narr(S.tod === 'day' ? 'อ่างล้างหน้า ก๊อกน้ำหยดติ๋ง ๆ' : 'กระจกเหนืออ่างสะท้อนห้องน้ำที่ว่างเปล่า... มีแค่ผมคนเดียว'),
+    sink: async () => {
+      if (S.tod === 'day') return narr('อ่างล้างหน้า ก๊อกน้ำหยดติ๋ง ๆ');
+      if (F.mirror || S.chapter < 2) return narr('กระจกเหนืออ่างสะท้อนห้องน้ำที่ว่างเปล่า... มีแค่ผมคนเดียว');
+      F.mirror = 1;
+      await narr('กระจกเหนืออ่างสะท้อนห้องน้ำที่ว่างเปล่า... มีแค่ผมคนเดียว');
+      await narr('ผมก้มลงวักน้ำล้างหน้า แล้วเงยขึ้นมามองกระจกอีกครั้ง');
+      await jumpscare('face');
+      return narr('ผมหันขวับไปข้างหลัง... ไม่มีใคร มีแค่เสียงน้ำหยด');
+    },
     stall: () => narr(S.tod === 'day' ? 'ห้องส้วม มีคนเขียนเบอร์โทรไว้บนประตู' : 'ประตูห้องส้วมแง้มอยู่ ข้างในไม่มีใคร'),
     shower: () => narr(S.tod === 'day' ? 'ที่อาบน้ำ น้ำอุ่นใช้ได้แค่สองห้อง' : 'พื้นที่อาบน้ำยังเปียก ทั้งที่ไม่มีใครใช้มาหลายชั่วโมง'),
     prints: async () => {
@@ -1870,7 +1892,7 @@ const Story = (() => {
       await wait(500); Snd.sfx.steps(); G.shake = 4;
       await narr('เสียงฝีเท้าดังมาจากเพดาน... ไม่สิ สูงกว่านั้น');
       Snd.sfx.thud(); G.shake = 8;
-      Snd.sfx.slam(); G.shake = 5; await narr('ปัง! ประตูหน้าห้องกระแทกปิดเอง');
+      Snd.sfx.slam(); await jumpscare('shadow'); await narr('ปัง! ประตูหน้าห้องกระแทกปิดเอง');
       F.trace = 1; refresh(); return;
     },
     roster: async () => {
@@ -1931,7 +1953,7 @@ const Story = (() => {
       ghost('shadow', 16, 15, 'left');
       await narr('เสียงฝีเท้าอีกคู่ดังขึ้นข้างหลังเขา');
       await narr('เงาอีกร่างหนึ่ง ไม่มีใบหน้า');
-      G.flash = 1; G.shake = 14; Snd.sfx.sting(); clearGhosts();
+      await jumpscare('shadow'); clearGhosts();
       await wait(1400);
       G.echo = 0; Snd.amb(['wind']);
       await narr('ภาพทั้งหมดหายไป เหลือแค่ผมกับเสียงลม');
@@ -2081,6 +2103,46 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 function fade(v, ms = 300) { const f = $('fade'); f.style.transitionDuration = ms + 'ms'; f.style.opacity = v; return wait(ms + 30); }
 let toastTimer = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800); }
+// ---------- jumpscare ----------
+const SCARE_KEY = 'dormhorror_noscare';
+let scareOn = true;
+try { scareOn = localStorage.getItem(SCARE_KEY) !== '1'; } catch (e) { /* storage blocked: keep default */ }
+function setScare(on) { scareOn = on; try { localStorage.setItem(SCARE_KEY, on ? '0' : '1'); } catch (e) { /* ignore */ } }
+function drawScare(x, kind, f) {
+  const W = 160, H = 90, s = .85 + f * .06, jx = (f % 2) * 2 - 1;
+  const img = x.createImageData(W, H), d = img.data;
+  const ell = (px, py, cx, cy, rx, ry) => ((px - cx) / rx) ** 2 + ((py - cy) / ry) ** 2 < 1;
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    const n = Math.random() * 40;
+    let r = n, g = n, b = n;
+    const cx = 80 + jx, cy = 54;
+    if (kind === 'shadow') {
+      if (ell(px, py, cx, cy - 10, 20 * s, 26 * s) || ell(px, py, cx, cy + 40, 46 * s, 30 * s)) r = g = b = 4;
+      else { r = n * 1.6; g = b = n * .5; }
+    } else if (ell(px, py, cx, cy, 30 * s, 40 * s)) {
+      const sh = 190 + n - Math.abs(px - cx) * 1.2;
+      r = sh; g = sh * .97; b = sh * .9;
+      const eye = ell(px, py, cx - 12 * s, cy - 8 * s, 7 * s, 9 * s) || ell(px, py, cx + 12 * s, cy - 8 * s, 7 * s, 9 * s);
+      const pupil = ell(px, py, cx - 12 * s, cy - 6 * s, 1.6, 1.6) || ell(px, py, cx + 12 * s, cy - 6 * s, 1.6, 1.6);
+      const mouth = ell(px, py, cx, cy + 22 * s, 6 * s, 13 * s);
+      const hair = py < cy - 18 * s + ((Math.sin(px * 1.7) + 1) * 14 * s) && Math.sin(px * 3.1) > -.6;
+      if (eye || mouth || hair) r = g = b = 6 + n * .2;
+      if (pupil) { r = 220; g = b = 20; }
+    }
+    if (f === 0) { r = r * .6 + 120; g *= .4; b *= .4; }
+    const i = (py * W + px) * 4;
+    d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+}
+async function jumpscare(kind = 'face') {
+  if (!scareOn) { G.shake = 6; Snd.sfx.thud(); return wait(300); }
+  const c = $('scare'), x = c.getContext('2d');
+  Snd.sfx.scare(); G.shake = 18; c.style.display = 'block';
+  for (let f = 0; f < 9; f++) { drawScare(x, kind, f); await wait(f < 6 ? 55 : 90); }
+  c.style.display = 'none'; G.flash = .6;
+}
+
 async function card(a, b) {
   const c = $('caption');
   c.innerHTML = `<div class="c1">${a}</div><div class="c2">${b || ''}</div>`;
@@ -2383,10 +2445,11 @@ function openBook() {
 }
 async function pauseMenu() {
   Snd.sfx.click();
-  const i = await ask('— พักเกม —', ['เล่นต่อ', 'บันทึกเกม', 'สมุดบันทึก', 'กลับหน้าหลัก']);
+  const i = await ask('— พักเกม —', ['เล่นต่อ', 'บันทึกเกม', 'สมุดบันทึก', 'Jumpscare: ' + (scareOn ? 'เปิด' : 'ปิด'), 'กลับหน้าหลัก']);
   if (i === 1) saveGame();
   if (i === 2) openBook();
-  if (i === 3) location.reload();
+  if (i === 3) { setScare(!scareOn); toast('Jumpscare: ' + (scareOn ? 'เปิด' : 'ปิด')); }
+  if (i === 4) location.reload();
 }
 
 // ---------- save ----------
