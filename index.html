@@ -2478,12 +2478,16 @@ function buildTitle(sub) {
     title.opts = ['เริ่มเกมใหม่']; title.acts = [() => startPlay(() => Story.newGame())];
     if (sv) { title.opts.push('เล่นต่อ'); title.acts.push(() => startPlay(() => Story.continueFrom(sv))); }
     // switch between the 2D page and the first-person 3D page (same save, same story)
-    const is3D = typeof THREE !== 'undefined', page = is3D ? './' : '3d.html';
-    title.opts.push(is3D ? 'เล่นแบบ 2D' : 'เล่นแบบ 3D (ใหม่)');
-    title.acts.push(() => {
-      const local = /^(horror\.670910537\.xyz|localhost|127\.0\.0\.1)$/.test(location.hostname);
-      if (local) location.href = page; else window.open('https://horror.670910537.xyz/' + (is3D ? '' : '3d.html'), '_blank');
-    });
+    const VIEW = window.VIEW || (typeof THREE !== 'undefined' ? '3d' : '2d');
+    const PAGES = { max: ['เล่นแบบ 3D MAX (ใหม่)', '3dmax.html'], '3d': ['เล่นแบบ 3D (PS1)', '3d.html'], '2d': ['เล่นแบบ 2D', ''] };
+    for (const [k, [label, href]] of Object.entries(PAGES)) {
+      if (k === VIEW) continue;
+      title.opts.push(label);
+      title.acts.push(() => {
+        const local = /^(horror\.670910537\.xyz|localhost|127\.0\.0\.1)$/.test(location.hostname);
+        if (local) location.href = href || './'; else window.open('https://horror.670910537.xyz/' + href, '_blank');
+      });
+    }
     title.opts.push('เลือกบท (สำหรับทดสอบ)', 'วิธีเล่น');
     title.acts.push(() => buildTitle(true), () => { title.help = !title.help; $('thelp').classList.toggle('hidden', !title.help); });
   }
